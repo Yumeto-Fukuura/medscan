@@ -73,7 +73,7 @@ def extract_json_from_response(response_text):
             "raw_response": response_text[:500] + "..." if len(response_text) > 500 else response_text
         }
 
-def analyze_section_with_gemini(image, section_name, api_key):
+def analyze_section_with_gemini(image, section_name, api_key, model_name):
     """
     Gemini APIを使用して画像セクションを解析
     
@@ -81,6 +81,7 @@ def analyze_section_with_gemini(image, section_name, api_key):
         image: PIL Image
         section_name: セクション名 (A, B, C, D)
         api_key: Gemini APIキー
+        model_name: 使用するGeminiモデル名
         
     Returns:
         dict: 解析結果
@@ -98,7 +99,7 @@ def analyze_section_with_gemini(image, section_name, api_key):
         img_byte_arr.seek(0)
         
         # Geminiモデルを初期化
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel(model_name)
         
         # セクション別のプロンプト
         prompts = {
@@ -193,12 +194,32 @@ def main():
     st.title("アンケート画像解析ツール")
     st.write("アンケート画像をアップロードして、各セクションの回答を構造化解析します。")
     
-    # APIキーの設定
+    # サイドバー設定
     st.sidebar.header("設定")
+    
+    # APIキーの設定
     api_key = st.sidebar.text_input("Gemini APIキー", type="password", help="Google AI Studioから取得したAPIキーを入力してください")
+    
+    # モデル選択
+    model_options = {
+        "Gemini 1.5 Flash (高速)": "gemini-1.5-flash",
+        "Gemini 1.5 Pro (高精度)": "gemini-1.5-pro",
+        "Gemini 2.0 Flash (最新)": "gemini-2.0-flash-exp",
+        "Gemini 2.5 Pro (最高精度)": "gemini-2.5-pro"
+    }
+    
+    selected_model = st.sidebar.selectbox(
+        "Geminiモデルを選択",
+        list(model_options.keys()),
+        index=3,  # Gemini 2.5 Proをデフォルトに設定
+        help="最高精度が必要な場合はGemini 2.5 Proを選択してください"
+    )
+    
+    model_name = model_options[selected_model]
     
     if api_key:
         st.sidebar.success("APIキーが設定されました")
+        st.sidebar.info(f"選択されたモデル: {selected_model}")
     else:
         st.sidebar.warning("Gemini APIキーを設定してください")
     
@@ -237,7 +258,7 @@ def main():
                     
                     # Gemini APIで解析
                     with col2:
-                        result = analyze_section_with_gemini(cropped_image, section, api_key)
+                        result = analyze_section_with_gemini(cropped_image, section, api_key, model_name)
                         results[section] = result
                         
                         if "error" in result:
